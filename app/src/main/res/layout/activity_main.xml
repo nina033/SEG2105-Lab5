@@ -24,10 +24,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_below="@id/editTextPrice"
-        android:layout_weight="1"
         android:layout_centerInParent="true"
         android:text="Add" />
-
 
     <TextView
         android:id="@+id/textView"
@@ -35,8 +33,7 @@
         android:layout_height="wrap_content"
         android:layout_below="@id/addButton"
         android:text="Products"
-        android:textAlignment="center"
-        />
+        android:textAlignment="center" />
 
     <ListView
         android:id="@+id/listViewProducts"

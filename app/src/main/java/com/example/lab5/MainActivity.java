@@ -1,14 +1,9 @@
 package com.example.lab5;
 
-
-
-
 import android.os.Bundle;
-
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
-
 import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.EditText;
@@ -17,6 +12,12 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,20 +30,22 @@ public class MainActivity extends AppCompatActivity {
     ListView listViewProducts;
 
     List<Product> products;
+    DatabaseReference databaseProducts;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        editTextName = (EditText) findViewById(R.id.editTextName);
-        editTextPrice = (EditText) findViewById(R.id.editTextPrice);
-        listViewProducts = (ListView) findViewById(R.id.listViewProducts);
-        buttonAddProduct = (Button) findViewById(R.id.addButton);
+        databaseProducts = FirebaseDatabase.getInstance().getReference("products");
+        editTextName = findViewById(R.id.editTextName);
+        editTextPrice = findViewById(R.id.editTextPrice);
+        listViewProducts = findViewById(R.id.listViewProducts);
+        buttonAddProduct = findViewById(R.id.addButton);
 
         products = new ArrayList<>();
 
-        //adding an onclicklistener to button
+        // Adding an onclick listener to button
         buttonAddProduct.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -60,12 +63,27 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-
     @Override
     protected void onStart() {
         super.onStart();
-    }
+        databaseProducts.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                products.clear();
+                for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
+                    Product product = postSnapshot.getValue(Product.class);
+                    products.add(product);
+                }
+                ProductList productsAdapter = new ProductList(MainActivity.this, products);
+                listViewProducts.setAdapter(productsAdapter);
+            }
 
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                // Handle potential errors
+            }
+        });
+    }
 
     private void showUpdateDeleteDialog(final String productId, String productName) {
 
@@ -74,10 +92,10 @@ public class MainActivity extends AppCompatActivity {
         final View dialogView = inflater.inflate(R.layout.update_dialog, null);
         dialogBuilder.setView(dialogView);
 
-        final EditText editTextName = (EditText) dialogView.findViewById(R.id.editTextName);
-        final EditText editTextPrice  = (EditText) dialogView.findViewById(R.id.editTextPrice);
-        final Button buttonUpdate = (Button) dialogView.findViewById(R.id.buttonUpdateProduct);
-        final Button buttonDelete = (Button) dialogView.findViewById(R.id.buttonDeleteProduct);
+        final EditText editTextName = dialogView.findViewById(R.id.editTextName);
+        final EditText editTextPrice = dialogView.findViewById(R.id.editTextPrice);
+        final Button buttonUpdate = dialogView.findViewById(R.id.buttonUpdateProduct);
+        final Button buttonDelete = dialogView.findViewById(R.id.buttonDeleteProduct);
 
         dialogBuilder.setTitle(productName);
         final AlertDialog b = dialogBuilder.create();
@@ -87,10 +105,17 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 String name = editTextName.getText().toString().trim();
-                double price = Double.parseDouble(String.valueOf(editTextPrice.getText().toString()));
-                if (!TextUtils.isEmpty(name)) {
-                    updateProduct(productId, name, price);
-                    b.dismiss();
+                String priceText = editTextPrice.getText().toString().trim();
+                if (!TextUtils.isEmpty(name) && !TextUtils.isEmpty(priceText)) {
+                    try {
+                        double price = Double.parseDouble(priceText);
+                        updateProduct(productId, name, price);
+                        b.dismiss();
+                    } catch (NumberFormatException e) {
+                        Toast.makeText(MainActivity.this, "Please enter a valid price", Toast.LENGTH_LONG).show();
+                    }
+                } else {
+                    Toast.makeText(MainActivity.this, "Please enter a name and a price", Toast.LENGTH_LONG).show();
                 }
             }
         });
@@ -105,17 +130,35 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateProduct(String id, String name, double price) {
-
-        Toast.makeText(getApplicationContext(), "NOT IMPLEMENTED YET", Toast.LENGTH_LONG).show();
+        DatabaseReference dR = FirebaseDatabase.getInstance().getReference("products").child(id);
+        Product product = new Product(id, name, price);
+        dR.setValue(product);
+        Toast.makeText(getApplicationContext(), "Product Updated", Toast.LENGTH_LONG).show();
     }
 
     private void deleteProduct(String id) {
-
-        Toast.makeText(getApplicationContext(), "NOT IMPLEMENTED YET", Toast.LENGTH_LONG).show();
+        DatabaseReference dR = FirebaseDatabase.getInstance().getReference("products").child(id);
+        dR.removeValue();
+        Toast.makeText(getApplicationContext(), "Product Deleted", Toast.LENGTH_LONG).show();
     }
 
     private void addProduct() {
-
-        Toast.makeText(this, "NOT IMPLEMENTED YET", Toast.LENGTH_LONG).show();
+        String name = editTextName.getText().toString().trim();
+        String priceText = editTextPrice.getText().toString().trim();
+        if (!TextUtils.isEmpty(name) && !TextUtils.isEmpty(priceText)) {
+            try {
+                double price = Double.parseDouble(priceText);
+                String id = databaseProducts.push().getKey();
+                Product product = new Product(id, name, price);
+                databaseProducts.child(id).setValue(product);
+                editTextName.setText("");
+                editTextPrice.setText("");
+                Toast.makeText(this, "Product added", Toast.LENGTH_LONG).show();
+            } catch (NumberFormatException e) {
+                Toast.makeText(this, "Please enter a valid price", Toast.LENGTH_LONG).show();
+            }
+        } else {
+            Toast.makeText(this, "Please enter a name and a price", Toast.LENGTH_LONG).show();
+        }
     }
 }

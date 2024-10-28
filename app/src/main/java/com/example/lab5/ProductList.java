@@ -38,4 +38,3 @@ public class ProductList extends ArrayAdapter<Product> {
         return listViewItem;
     }
 }
-
